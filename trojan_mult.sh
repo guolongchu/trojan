@@ -79,7 +79,7 @@ EOF
             exit 1
         fi
         curl https://get.acme.sh | sh
-        ~/.acme.sh/acme.sh --register-account -m mail=guolongchu@gmail.com
+        ~/.acme.sh/acme.sh --register-account -m guolongchu@gmail.com
         ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
         if test -s /root/.acme.sh/$your_domain/fullchain.cer; then
             cert_success="1"
@@ -102,7 +102,7 @@ EOF
     else 
         mkdir /usr/src/trojan-cert/$your_domain
         curl https://get.acme.sh | sh
-        ~/.acme.sh/acme.sh --register-account -m mail=guolongchu@gmail.com
+        ~/.acme.sh/acme.sh --register-account -m guolongchu@gmail.com
         ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
         if test -s /root/.acme.sh/$your_domain/fullchain.cer; then
             cert_success="1"
