@@ -81,10 +81,10 @@ EOF
         curl https://get.acme.sh | sh
         ~/.acme.sh/acme.sh --register-account -m guolongchu@gmail.com
         ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
-        if test -s /root/.acme.sh/$your_domain/fullchain.cer; then
+        if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
             cert_success="1"
         fi
-    elif [ -f "/usr/src/trojan-cert/$your_domain/fullchain.cer" ]; then
+    elif [ -f "/usr/src/trojan-cert/${your_domain}_ecc/fullchain.cer" ]; then
         cd /usr/src/trojan-cert/$your_domain
         create_time=`stat -c %Y fullchain.cer`
         now_time=`date +%s`
@@ -92,7 +92,7 @@ EOF
         if [  $minus -gt 5184000 ]; then
             curl https://get.acme.sh | sh
             ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
-            if test -s /root/.acme.sh/$your_domain/fullchain.cer; then
+            if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
                 cert_success="1"
             fi
         else 
@@ -104,7 +104,7 @@ EOF
         curl https://get.acme.sh | sh
         ~/.acme.sh/acme.sh --register-account -m guolongchu@gmail.com
         ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
-        if test -s /root/.acme.sh/$your_domain/fullchain.cer; then
+        if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
             cert_success="1"
         fi
     fi
