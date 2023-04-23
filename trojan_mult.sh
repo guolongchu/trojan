@@ -182,7 +182,6 @@ EOF
         "cipher_tls13":"TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384",
         "sni": "",
         "alpn": [
-            "h3",
             "h2",
             "http/1.1"
         ],
@@ -217,7 +216,6 @@ EOF
         "cipher_tls13":"TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384",
         "prefer_server_cipher": true,
         "alpn": [
-            "h3"
             "h2"
             "http/1.1"
         ],
