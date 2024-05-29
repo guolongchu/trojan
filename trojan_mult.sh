@@ -437,7 +437,7 @@ function repair_cert(){
             --key-file   /usr/src/trojan-cert/$your_domain/private.key \
             --fullchain-file /usr/src/trojan-cert/$your_domain/fullchain.cer \
             --reloadcmd  "systemctl restart trojan"
-        if test -s /usr/src/trojan-cert/$your_domain/fullchain.cer; then
+        if test -s /usr/src/trojan-cert/${your_domain}_ecc/fullchain.cer; then
             green "证书申请成功"
             systemctl restart trojan
             systemctl start nginx
