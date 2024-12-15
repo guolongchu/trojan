@@ -79,19 +79,19 @@ EOF
             exit 1
         fi
         curl https://get.acme.sh | sh
-        ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server zerossl
+        ~/.acme.sh/acme.sh --register-account -m test@$your_domain --server zerossl
         ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
         if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
             cert_success="1"
         fi
     elif [ -f "/usr/src/trojan-cert/${your_domain}_ecc/fullchain.cer" ]; then
         cd /usr/src/trojan-cert/$your_domain
-        create_time=`stat -c %Y fullchain.cer`
-        now_time=`date +%s`
+        create_time=$(stat -c %Y fullchain.cer)
+        now_time=$(date +%s)
         minus=$(($now_time - $create_time ))
         if [  $minus -gt 5184000 ]; then
             curl https://get.acme.sh | sh
-            ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server zerossl
+            ~/.acme.sh/acme.sh --register-account -m test@$your_domain --server zerossl
             ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
             if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
                 cert_success="1"
@@ -103,13 +103,13 @@ EOF
     else 
         mkdir /usr/src/trojan-cert/$your_domain
         curl https://get.acme.sh | sh
-        ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server zerossl
+        ~/.acme.sh/acme.sh --register-account -m test@$your_domain --server zerossl
         ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
         if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
             cert_success="1"
         fi
     fi
-    
+    echo $cert_success
     if [ "$cert_success" == "1" ]; then
         cat > /etc/nginx/nginx.conf <<-EOF
 user  root;
@@ -431,7 +431,7 @@ function repair_cert(){
     real_addr=`ping ${your_domain} -c 1 | sed '1{s/[^(]*(//;s/).*//;q}'`
     local_addr=`curl ipv4.icanhazip.com`
     if [ $real_addr == $local_addr ] ; then
-        ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server zerossl
+        ~/.acme.sh/acme.sh --register-account -m test@$your_domain --server zerossl
         ~/.acme.sh/acme.sh  --issue  -d $your_domain  --standalone
         ~/.acme.sh/acme.sh  --installcert  -d  $your_domain   \
             --key-file   /usr/src/trojan-cert/$your_domain/private.key \
