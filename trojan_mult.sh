@@ -501,8 +501,7 @@ function update_trojan(){
     else
         green "当前版本$curr_version,最新版本$latest_version,无需升级"
     fi
-   
-   
+    
 }
 
 start_menu(){
