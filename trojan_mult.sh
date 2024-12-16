@@ -1,15 +1,15 @@
 #!/bin/bash
-function blue(){
+function blue() {
     echo -e "\033[34m\033[01m$1\033[0m"
 }
-function green(){
+function green() {
     echo -e "\033[32m\033[01m$1\033[0m"
 }
-function red(){
+function red() {
     echo -e "\033[31m\033[01m$1\033[0m"
 }
-function version_lt(){
-    test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" != "$1"; 
+function version_lt() {
+    test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" != "$1"
 }
 
 source /etc/os-release
@@ -27,13 +27,13 @@ elif [ "$RELEASE" == "ubuntu" ]; then
 fi
 systempwd="/etc/systemd/system/"
 
-function install_trojan(){
+function install_trojan() {
     $systemPackage install -y nginx
     if [ ! -d "/etc/nginx/" ]; then
         red "nginx安装有问题，请使用卸载trojan后重新安装"
         exit 1
     fi
-    cat > /etc/nginx/nginx.conf <<-EOF
+    cat >/etc/nginx/nginx.conf <<-EOF
 user  root;
 worker_processes  1;
 error_log  /var/log/nginx/error.log warn;
@@ -80,7 +80,7 @@ EOF
         fi
         curl https://get.acme.sh | sh
         ~/.acme.sh/acme.sh --register-account -m test@$your_domain --server zerossl
-        ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
+        ~/.acme.sh/acme.sh --issue -d $your_domain --nginx
         if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
             cert_success="1"
         fi
@@ -88,30 +88,30 @@ EOF
         cd /usr/src/trojan-cert/$your_domain
         create_time=$(stat -c %Y fullchain.cer)
         now_time=$(date +%s)
-        minus=$(($now_time - $create_time ))
-        if [  $minus -gt 5184000 ]; then
+        minus=$(($now_time - $create_time))
+        if [ $minus -gt 5184000 ]; then
             curl https://get.acme.sh | sh
             ~/.acme.sh/acme.sh --register-account -m test@$your_domain --server zerossl
-            ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
+            ~/.acme.sh/acme.sh --issue -d $your_domain --nginx
             if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
                 cert_success="1"
             fi
-        else 
+        else
             green "检测到域名$your_domain证书存在且未超过60天，无需重新申请"
             cert_success="1"
-        fi        
-    else 
+        fi
+    else
         mkdir /usr/src/trojan-cert/$your_domain
         curl https://get.acme.sh | sh
         ~/.acme.sh/acme.sh --register-account -m test@$your_domain --server zerossl
-        ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
+        ~/.acme.sh/acme.sh --issue -d $your_domain --nginx
         if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
             cert_success="1"
         fi
     fi
     echo $cert_success
     if [ "$cert_success" == "1" ]; then
-        cat > /etc/nginx/nginx.conf <<-EOF
+        cat >/etc/nginx/nginx.conf <<-EOF
 user  root;
 worker_processes  1;
 error_log  /var/log/nginx/error.log warn;
@@ -149,7 +149,7 @@ EOF
         systemctl enable nginx
         cd /usr/src
         wget https://api.github.com/repos/trojan-gfw/trojan/releases/latest >/dev/null 2>&1
-        latest_version=`grep tag_name latest| awk -F '[:,"v]' '{print $6}'`
+        latest_version=$(grep tag_name latest | awk -F '[:,"v]' '{print $6}')
         rm -f latest
         green "开始下载最新版trojan amd64"
         wget https://github.com/trojan-gfw/trojan/releases/download/v${latest_version}/trojan-${latest_version}-linux-amd64.tar.xz
@@ -165,7 +165,7 @@ EOF
         green "请设置trojan密码，建议不要出现特殊字符"
         read -p "请输入密码 :" trojan_passwd
         #trojan_passwd=$(cat /dev/urandom | head -1 | md5sum | head -c 8)
-        cat > /usr/src/trojan-cli/config.json <<-EOF
+        cat >/usr/src/trojan-cli/config.json <<-EOF
 {
     "run_type": "client",
     "local_addr": "127.0.0.1",
@@ -198,8 +198,8 @@ EOF
     }
 }
 EOF
-         rm -rf /usr/src/trojan/server.conf
-         cat > /usr/src/trojan/server.conf <<-EOF
+        rm -rf /usr/src/trojan/server.conf
+        cat >/usr/src/trojan/server.conf <<-EOF
 {
     "run_type": "server",
     "local_addr": "0.0.0.0",
@@ -217,7 +217,6 @@ EOF
         "cipher_tls13":"TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384",
         "prefer_server_cipher": true,
         "alpn": [
-            "h2"
             "http/1.1"
         ],
         "reuse_session": true,
@@ -249,8 +248,8 @@ EOF
         rm -f /usr/src/trojan-cli.zip
         trojan_path=$(cat /dev/urandom | head -1 | md5sum | head -c 16)
         #mkdir /usr/share/nginx/html/${trojan_path}
-        #mv /usr/src/trojan-cli/trojan-cli.zip /usr/share/nginx/html/${trojan_path}/	
-        cat > ${systempwd}trojan.service <<-EOF
+        #mv /usr/src/trojan-cli/trojan-cli.zip /usr/share/nginx/html/${trojan_path}/
+        cat >${systempwd}trojan.service <<-EOF
 [Unit]  
 Description=trojan  
 After=network.target  
@@ -270,10 +269,10 @@ EOF
         chmod +x ${systempwd}trojan.service
         systemctl enable trojan.service
         cd /root
-        ~/.acme.sh/acme.sh  --installcert  -d  $your_domain   \
-            --key-file   /usr/src/trojan-cert/$your_domain/private.key \
-            --fullchain-file  /usr/src/trojan-cert/$your_domain/fullchain.cer \
-            --reloadcmd  "systemctl restart trojan"	
+        ~/.acme.sh/acme.sh --installcert -d $your_domain \
+            --key-file /usr/src/trojan-cert/$your_domain/private.key \
+            --fullchain-file /usr/src/trojan-cert/$your_domain/fullchain.cer \
+            --reloadcmd "systemctl restart trojan"
         green "==========================================================================="
         green "windows客户端路径/usr/src/trojan-cli/trojan-cli.zip，此客户端已配置好所有参数"
         green "==========================================================================="
@@ -289,24 +288,24 @@ EOF
         red "==================================="
     fi
 }
-function preinstall_check(){
+function preinstall_check() {
 
-    nginx_status=`ps -aux | grep "nginx: worker" |grep -v "grep"`
+    nginx_status=$(ps -aux | grep "nginx: worker" | grep -v "grep")
     if [ -n "$nginx_status" ]; then
         systemctl stop nginx
     fi
     $systemPackage -y install net-tools socat >/dev/null 2>&1
-    Port80=`netstat -tlpn | awk -F '[: ]+' '$1=="tcp"{print $5}' | grep -w 80`
-    Port443=`netstat -tlpn | awk -F '[: ]+' '$1=="tcp"{print $5}' | grep -w 443`
+    Port80=$(netstat -tlpn | awk -F '[: ]+' '$1=="tcp"{print $5}' | grep -w 80)
+    Port443=$(netstat -tlpn | awk -F '[: ]+' '$1=="tcp"{print $5}' | grep -w 443)
     if [ -n "$Port80" ]; then
-        process80=`netstat -tlpn | awk -F '[: ]+' '$5=="80"{print $9}'`
+        process80=$(netstat -tlpn | awk -F '[: ]+' '$5=="80"{print $9}')
         red "==========================================================="
         red "检测到80端口被占用，占用进程为：${process80}，本次安装结束"
         red "==========================================================="
         exit 1
     fi
     if [ -n "$Port443" ]; then
-        process443=`netstat -tlpn | awk -F '[: ]+' '$5=="443"{print $9}'`
+        process443=$(netstat -tlpn | awk -F '[: ]+' '$5=="443"{print $9}')
         red "============================================================="
         red "检测到443端口被占用，占用进程为：${process443}，本次安装结束"
         red "============================================================="
@@ -332,19 +331,19 @@ function preinstall_check(){
         fi
     fi
     if [ "$release" == "centos" ]; then
-        if  [ -n "$(grep ' 6\.' /etc/redhat-release)" ] ;then
-        red "==============="
-        red "当前系统不受支持"
-        red "==============="
-        exit
+        if [ -n "$(grep ' 6\.' /etc/redhat-release)" ]; then
+            red "==============="
+            red "当前系统不受支持"
+            red "==============="
+            exit
         fi
-        if  [ -n "$(grep ' 5\.' /etc/redhat-release)" ] ;then
-        red "==============="
-        red "当前系统不受支持"
-        red "==============="
-        exit
+        if [ -n "$(grep ' 5\.' /etc/redhat-release)" ]; then
+            red "==============="
+            red "当前系统不受支持"
+            red "==============="
+            exit
         fi
-        firewall_status=`systemctl status firewalld | grep "Active: active"`
+        firewall_status=$(systemctl status firewalld | grep "Active: active")
         if [ -n "$firewall_status" ]; then
             green "检测到firewalld开启状态，添加放行80/443端口规则"
             firewall-cmd --zone=public --add-port=80/tcp --permanent
@@ -353,19 +352,19 @@ function preinstall_check(){
         fi
         rpm -Uvh http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm --force --nodeps
     elif [ "$release" == "ubuntu" ]; then
-        if  [ -n "$(grep ' 14\.' /etc/os-release)" ] ;then
-        red "==============="
-        red "当前系统不受支持"
-        red "==============="
-        exit
+        if [ -n "$(grep ' 14\.' /etc/os-release)" ]; then
+            red "==============="
+            red "当前系统不受支持"
+            red "==============="
+            exit
         fi
-        if  [ -n "$(grep ' 12\.' /etc/os-release)" ] ;then
-        red "==============="
-        red "当前系统不受支持"
-        red "==============="
-        exit
+        if [ -n "$(grep ' 12\.' /etc/os-release)" ]; then
+            red "==============="
+            red "当前系统不受支持"
+            red "==============="
+            exit
         fi
-        ufw_status=`systemctl status ufw | grep "Active: active"`
+        ufw_status=$(systemctl status ufw | grep "Active: active")
         if [ -n "$ufw_status" ]; then
             ufw allow 80/tcp
             ufw allow 443/tcp
@@ -373,7 +372,7 @@ function preinstall_check(){
         fi
         apt-get update
     elif [ "$release" == "debian" ]; then
-        ufw_status=`systemctl status ufw | grep "Active: active"`
+        ufw_status=$(systemctl status ufw | grep "Active: active")
         if [ -n "$ufw_status" ]; then
             ufw allow 80/tcp
             ufw allow 443/tcp
@@ -381,14 +380,14 @@ function preinstall_check(){
         fi
         apt-get update
     fi
-    $systemPackage -y install  wget unzip zip curl tar >/dev/null 2>&1
+    $systemPackage -y install wget unzip zip curl tar >/dev/null 2>&1
     green "======================="
     blue "请输入绑定到本VPS的域名"
     green "======================="
     read your_domain
-    real_addr=`ping ${your_domain} -c 1 | sed '1{s/[^(]*(//;s/).*//;q}'`
-    local_addr=`curl ipv4.icanhazip.com`
-    if [ $real_addr == $local_addr ] ; then
+    real_addr=$(ping ${your_domain} -c 1 | sed '1{s/[^(]*(//;s/).*//;q}')
+    local_addr=$(curl ipv4.icanhazip.com)
+    if [ $real_addr == $local_addr ]; then
         green "=========================================="
         green "       域名解析正常，开始安装trojan"
         green "=========================================="
@@ -411,13 +410,13 @@ function preinstall_check(){
     fi
 }
 
-function repair_cert(){
+function repair_cert() {
     systemctl stop nginx
     #iptables -I INPUT -p tcp --dport 80 -j ACCEPT
     #iptables -I INPUT -p tcp --dport 443 -j ACCEPT
-    Port80=`netstat -tlpn | awk -F '[: ]+' '$1=="tcp"{print $5}' | grep -w 80`
+    Port80=$(netstat -tlpn | awk -F '[: ]+' '$1=="tcp"{print $5}' | grep -w 80)
     if [ -n "$Port80" ]; then
-        process80=`netstat -tlpn | awk -F '[: ]+' '$5=="80"{print $9}'`
+        process80=$(netstat -tlpn | awk -F '[: ]+' '$5=="80"{print $9}')
         red "==========================================================="
         red "检测到80端口被占用，占用进程为：${process80}，本次安装结束"
         red "==========================================================="
@@ -428,16 +427,16 @@ function repair_cert(){
     blue "务必与之前失败使用的域名一致"
     green "============================"
     read your_domain
-    real_addr=`ping ${your_domain} -c 1 | sed '1{s/[^(]*(//;s/).*//;q}'`
-    local_addr=`curl ipv4.icanhazip.com`
-    if [ $real_addr == $local_addr ] ; then
+    real_addr=$(ping ${your_domain} -c 1 | sed '1{s/[^(]*(//;s/).*//;q}')
+    local_addr=$(curl ipv4.icanhazip.com)
+    if [ $real_addr == $local_addr ]; then
         ~/.acme.sh/acme.sh --register-account -m test@$your_domain --server zerossl
-        ~/.acme.sh/acme.sh  --issue  -d $your_domain  --standalone
-        ~/.acme.sh/acme.sh  --installcert  -d  $your_domain   \
-            --key-file   /usr/src/trojan-cert/$your_domain/private.key \
+        ~/.acme.sh/acme.sh --issue -d $your_domain --standalone
+        ~/.acme.sh/acme.sh --installcert -d $your_domain \
+            --key-file /usr/src/trojan-cert/$your_domain/private.key \
             --fullchain-file /usr/src/trojan-cert/$your_domain/fullchain.cer \
-            --reloadcmd  "systemctl restart trojan"
-        if test -s /usr/src/trojan-cert/${your_domain}_ecc/fullchain.cer; then
+            --reloadcmd "systemctl restart trojan"
+        if test -s /usr/src/trojan-cert/$your_domain/fullchain.cer; then
             green "证书申请成功"
             systemctl restart trojan
             systemctl start nginx
@@ -452,7 +451,7 @@ function repair_cert(){
     fi
 }
 
-function remove_trojan(){
+function remove_trojan() {
     red "================================"
     red "即将卸载trojan"
     red "同时卸载安装的nginx"
@@ -480,11 +479,11 @@ function remove_trojan(){
     green "=============="
 }
 
-function update_trojan(){
+function update_trojan() {
     /usr/src/trojan/trojan -v 2>trojan.tmp
-    curr_version=`cat trojan.tmp | grep "trojan" | awk '{print $4}'`
+    curr_version=$(cat trojan.tmp | grep "trojan" | awk '{print $4}')
     wget https://api.github.com/repos/trojan-gfw/trojan/releases/latest >/dev/null 2>&1
-    latest_version=`grep tag_name latest| awk -F '[:,"v]' '{print $6}'`
+    latest_version=$(grep tag_name latest | awk -F '[:,"v]' '{print $6}')
     rm -f latest
     rm -f trojan.tmp
     if version_lt "$curr_version" "$latest_version"; then
@@ -495,16 +494,16 @@ function update_trojan(){
         mv ./trojan/trojan /usr/src/trojan/
         cd .. && rm -rf trojan_update_temp
         systemctl restart trojan
-    /usr/src/trojan/trojan -v 2>trojan.tmp
-    green "服务端trojan升级完成，当前版本：`cat trojan.tmp | grep "trojan" | awk '{print $4}'`，客户端请在trojan github下载最新版"
-    rm -f trojan.tmp
+        /usr/src/trojan/trojan -v 2>trojan.tmp
+        green "服务端trojan升级完成，当前版本：$(cat trojan.tmp | grep "trojan" | awk '{print $4}')，客户端请在trojan github下载最新版"
+        rm -f trojan.tmp
     else
         green "当前版本$curr_version,最新版本$latest_version,无需升级"
     fi
-    
+
 }
 
-start_menu(){
+start_menu() {
     clear
     green " ======================================="
     green " 介绍: 一键安装trojan      "
@@ -525,26 +524,26 @@ start_menu(){
     read -p "请输入数字 :" num
     case "$num" in
     1)
-    preinstall_check
-    ;;
+        preinstall_check
+        ;;
     2)
-    remove_trojan 
-    ;;
+        remove_trojan
+        ;;
     3)
-    update_trojan 
-    ;;
+        update_trojan
+        ;;
     4)
-    repair_cert 
-    ;;
+        repair_cert
+        ;;
     0)
-    exit 1
-    ;;
+        exit 1
+        ;;
     *)
-    clear
-    red "请输入正确数字"
-    sleep 1s
-    start_menu
-    ;;
+        clear
+        red "请输入正确数字"
+        sleep 1s
+        start_menu
+        ;;
     esac
 }
 
