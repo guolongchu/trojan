@@ -217,6 +217,7 @@ EOF
         "cipher_tls13":"TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384",
         "prefer_server_cipher": true,
         "alpn": [
+            "h2",
             "http/1.1"
         ],
         "reuse_session": true,
@@ -229,7 +230,7 @@ EOF
     "tcp": {
         "no_delay": true,
         "keep_alive": true,
-        "fast_open": false,
+        "fast_open": true,
         "fast_open_qlen": 20
     },
     "mysql": {
