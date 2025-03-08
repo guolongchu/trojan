@@ -79,8 +79,7 @@ EOF
             exit 1
         fi
         curl https://get.acme.sh | sh
-        ~/acme.sh --set-default-ca --server letsencrypt
-        ~/.acme.sh/acme.sh --register-account -m mail@$your_domain
+        ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server letsencrypt
         ~/.acme.sh/acme.sh --issue -d $your_domain --nginx
         if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
             cert_success="1"
@@ -92,8 +91,7 @@ EOF
         minus=$(($now_time - $create_time))
         if [ $minus -gt 5184000 ]; then
             curl https://get.acme.sh | sh
-            ~/acme.sh --set-default-ca --server letsencrypt
-            ~/.acme.sh/acme.sh --register-account -m mail@$your_domain
+            ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server letsencrypt
             ~/.acme.sh/acme.sh --issue -d $your_domain --nginx
             if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
                 cert_success="1"
@@ -105,8 +103,7 @@ EOF
     else
         mkdir /usr/src/trojan-cert/$your_domain
         curl https://get.acme.sh | sh
-        ~/acme.sh --set-default-ca --server letsencrypt
-        ~/.acme.sh/acme.sh --register-account -m mail@$your_domain
+        ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server letsencrypt
         ~/.acme.sh/acme.sh --issue -d $your_domain --nginx
         if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
             cert_success="1"
@@ -434,8 +431,7 @@ function repair_cert() {
     real_addr=$(ping ${your_domain} -c 1 | sed '1{s/[^(]*(//;s/).*//;q}')
     local_addr=$(curl ipv4.icanhazip.com)
     if [ $real_addr == $local_addr ]; then
-        ~/acme.sh --set-default-ca --server letsencrypt
-        ~/.acme.sh/acme.sh --register-account -m mail@$your_domain
+        ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server letsencrypt
         ~/.acme.sh/acme.sh --issue -d $your_domain --standalone
         ~/.acme.sh/acme.sh --installcert -d $your_domain \
             --key-file /usr/src/trojan-cert/$your_domain/private.key \
