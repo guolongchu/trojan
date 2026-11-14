@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o pipefail
 function blue() {
     echo -e "\033[34m\033[01m$1\033[0m"
 }
@@ -26,15 +27,24 @@ elif [ "$RELEASE" == "ubuntu" ]; then
     systemPackage="apt-get"
 fi
 systempwd="/etc/systemd/system/"
+if [ "$release" == "centos" ]; then
+    NGINX_USER="nginx"
+else
+    NGINX_USER="www-data"
+fi
 
 function install_trojan() {
-    $systemPackage install -y nginx
+    $systemPackage install -y nginx || { red "nginx 安装失败"; exit 1; }
     if [ ! -d "/etc/nginx/" ]; then
         red "nginx安装有问题，请使用卸载trojan后重新安装"
         exit 1
     fi
+    if [ -f /etc/nginx/nginx.conf ]; then
+        cp -a /etc/nginx/nginx.conf "/etc/nginx/nginx.conf.bak.$(date +%Y%m%d%H%M%S)"
+        green "已备份原 nginx.conf 到 /etc/nginx/nginx.conf.bak.*"
+    fi
     cat >/etc/nginx/nginx.conf <<-EOF
-user  root;
+user  ${NGINX_USER};
 worker_processes  1;
 error_log  /var/log/nginx/error.log warn;
 pid        /var/run/nginx.pid;
@@ -61,6 +71,7 @@ http {
     }
 }
 EOF
+    nginx -t || { red "nginx 配置校验失败，已中止"; exit 1; }
     systemctl restart nginx
     sleep 3
     rm -rf /usr/share/nginx/html/*
@@ -84,7 +95,7 @@ EOF
         if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
             cert_success="1"
         fi
-    elif [ -f "/usr/src/trojan-cert/${your_domain}_ecc/fullchain.cer" ]; then
+    elif [ -f "/usr/src/trojan-cert/$your_domain/fullchain.cer" ]; then
         cd /usr/src/trojan-cert/$your_domain
         create_time=$(stat -c %Y fullchain.cer)
         now_time=$(date +%s)
@@ -112,7 +123,7 @@ EOF
     echo $cert_success
     if [ "$cert_success" == "1" ]; then
         cat >/etc/nginx/nginx.conf <<-EOF
-user  root;
+user  ${NGINX_USER};
 worker_processes  1;
 error_log  /var/log/nginx/error.log warn;
 pid        /var/run/nginx.pid;
@@ -162,8 +173,13 @@ EOF
         unzip -o trojan-cli.zip >/dev/null 2>&1
         unzip -o /usr/src/trojan-temp/trojan-${latest_version}-win.zip -d /usr/src/trojan-temp/ >/dev/null 2>&1
         mv -f /usr/src/trojan-temp/trojan/trojan.exe /usr/src/trojan-cli/
-        green "请设置trojan密码，建议不要出现特殊字符"
-        read -p "请输入密码 :" trojan_passwd
+        green "请设置trojan密码（输入不显示，至少 8 位）"
+        while :; do
+            read -r -s -p "请输入密码 :" trojan_passwd; echo
+            [ ${#trojan_passwd} -ge 8 ] && break
+            red "密码太短，请重新输入"
+        done
+        trojan_passwd_json=$(printf '%s' "$trojan_passwd" | sed 's/\\/\\\\/g; s/"/\\"/g')
         #trojan_passwd=$(cat /dev/urandom | head -1 | md5sum | head -c 8)
         cat >/usr/src/trojan-cli/config.json <<-EOF
 {
@@ -173,7 +189,7 @@ EOF
     "remote_addr": "$your_domain",
     "remote_port": 443,
     "password": [
-        "$trojan_passwd"
+        "$trojan_passwd_json"
     ],
     "log_level": 1,
     "ssl": {
@@ -207,7 +223,7 @@ EOF
     "remote_addr": "127.0.0.1",
     "remote_port": 80,
     "password": [
-        "$trojan_passwd"
+        "$trojan_passwd_json"
     ],
     "log_level": 1,
     "ssl": {
@@ -244,7 +260,10 @@ EOF
 }
 EOF
         cd /usr/src/trojan-cli/
-        zip -q -r trojan-cli.zip /usr/src/trojan-cli/
+        cd /usr/src/trojan-cli/
+        rm -f trojan-cli.zip
+        zip -q -r trojan-cli.zip . -x 'trojan-cli.zip'
+        cd /usr/src
         rm -rf /usr/src/trojan-temp/
         rm -f /usr/src/trojan-cli.zip
         trojan_path=$(cat /dev/urandom | head -1 | md5sum | head -c 16)
@@ -270,6 +289,7 @@ EOF
         chmod +x ${systempwd}trojan.service
         systemctl enable trojan.service
         cd /root
+        mkdir -p /usr/src/trojan-cert/$your_domain
         ~/.acme.sh/acme.sh --installcert -d $your_domain \
             --key-file /usr/src/trojan-cert/$your_domain/private.key \
             --fullchain-file /usr/src/trojan-cert/$your_domain/fullchain.cer \
@@ -386,9 +406,9 @@ function preinstall_check() {
     blue "请输入绑定到本VPS的域名"
     green "======================="
     read your_domain
-    real_addr=$(ping ${your_domain} -c 1 | sed '1{s/[^(]*(//;s/).*//;q}')
-    local_addr=$(curl ipv4.icanhazip.com)
-    if [ $real_addr == $local_addr ]; then
+    real_addr=$(getent ahostsv4 "$your_domain" | awk 'NR==1{print $1}')
+    local_addr=$(curl -fsS --max-time 10 https://api.ipify.org || curl -fsS --max-time 10 https://ipv4.icanhazip.com)
+    if [ "$real_addr" == "$local_addr" ]; then
         green "=========================================="
         green "       域名解析正常，开始安装trojan"
         green "=========================================="
@@ -428,9 +448,9 @@ function repair_cert() {
     blue "务必与之前失败使用的域名一致"
     green "============================"
     read your_domain
-    real_addr=$(ping ${your_domain} -c 1 | sed '1{s/[^(]*(//;s/).*//;q}')
-    local_addr=$(curl ipv4.icanhazip.com)
-    if [ $real_addr == $local_addr ]; then
+    real_addr=$(getent ahostsv4 "$your_domain" | awk 'NR==1{print $1}')
+    local_addr=$(curl -fsS --max-time 10 https://api.ipify.org || curl -fsS --max-time 10 https://ipv4.icanhazip.com)
+    if [ "$real_addr" == "$local_addr" ]; then
         ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server zerossl
         ~/.acme.sh/acme.sh --issue -d $your_domain --standalone
         ~/.acme.sh/acme.sh --installcert -d $your_domain \
@@ -468,7 +488,7 @@ function remove_trojan() {
         apt-get -y autoremove nginx
         apt-get -y --purge remove nginx
         apt-get -y autoremove && apt-get -y autoclean
-        find / | grep nginx | sudo xargs rm -rf
+        rm -rf /etc/nginx /var/log/nginx /usr/share/nginx /var/lib/nginx /var/cache/nginx
     fi
     rm -rf /usr/src/trojan/
     rm -rf /usr/src/trojan-cli/
