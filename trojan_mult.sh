@@ -26,6 +26,8 @@ elif [ "$RELEASE" == "ubuntu" ]; then
     systemPackage="apt-get"
 fi
 systempwd="/etc/systemd/system/"
+TROJAN_PLUS_URL="https://github.com/atrandys/trojan-plus/releases/download/v10.0.3/trojan"
+TROJAN_PLUS_WIN_URL="https://github.com/atrandys/trojan-plus/releases/download/v10.0.3/trojan.exe"
 
 function install_trojan() {
     $systemPackage install -y nginx
@@ -148,20 +150,16 @@ EOF
         systemctl restart nginx
         systemctl enable nginx
         cd /usr/src
-        wget https://api.github.com/repos/trojan-gfw/trojan/releases/latest >/dev/null 2>&1
-        latest_version=$(grep tag_name latest | awk -F '[:,"v]' '{print $6}')
-        rm -f latest
-        green "开始下载最新版trojan amd64"
-        wget https://github.com/trojan-gfw/trojan/releases/download/v${latest_version}/trojan-${latest_version}-linux-amd64.tar.xz
-        tar xf trojan-${latest_version}-linux-amd64.tar.xz >/dev/null 2>&1
-        rm -f trojan-${latest_version}-linux-amd64.tar.xz
+        green "开始下载 trojan-plus（linux amd64）"
+        mkdir -p /usr/src/trojan
+        wget -O /usr/src/trojan/trojan "${TROJAN_PLUS_URL}" || { red "trojan-plus 下载失败"; exit 1; }
+        chmod +x /usr/src/trojan/trojan
         #下载trojan客户端
         green "开始下载并处理trojan windows客户端"
         wget https://github.com/atrandys/trojan/raw/master/trojan-cli.zip
-        wget -P /usr/src/trojan-temp https://github.com/trojan-gfw/trojan/releases/download/v${latest_version}/trojan-${latest_version}-win.zip
+        wget -O /usr/src/trojan-temp/trojan.exe "${TROJAN_PLUS_WIN_URL}" || { red "windows 客户端下载失败"; exit 1; }
         unzip -o trojan-cli.zip >/dev/null 2>&1
-        unzip -o /usr/src/trojan-temp/trojan-${latest_version}-win.zip -d /usr/src/trojan-temp/ >/dev/null 2>&1
-        mv -f /usr/src/trojan-temp/trojan/trojan.exe /usr/src/trojan-cli/
+        mv -f /usr/src/trojan-temp/trojan.exe /usr/src/trojan-cli/
         green "请设置trojan密码，建议不要出现特殊字符"
         read -p "请输入密码 :" trojan_passwd
         #trojan_passwd=$(cat /dev/urandom | head -1 | md5sum | head -c 8)
@@ -481,27 +479,16 @@ function remove_trojan() {
 }
 
 function update_trojan() {
-    /usr/src/trojan/trojan -v 2>trojan.tmp
-    curr_version=$(cat trojan.tmp | grep "trojan" | awk '{print $4}')
-    wget https://api.github.com/repos/trojan-gfw/trojan/releases/latest >/dev/null 2>&1
-    latest_version=$(grep tag_name latest | awk -F '[:,"v]' '{print $6}')
-    rm -f latest
-    rm -f trojan.tmp
-    if version_lt "$curr_version" "$latest_version"; then
-        green "当前版本$curr_version,最新版本$latest_version,开始升级……"
-        mkdir trojan_update_temp && cd trojan_update_temp
-        wget https://github.com/trojan-gfw/trojan/releases/download/v${latest_version}/trojan-${latest_version}-linux-amd64.tar.xz >/dev/null 2>&1
-        tar xf trojan-${latest_version}-linux-amd64.tar.xz >/dev/null 2>&1
-        mv ./trojan/trojan /usr/src/trojan/
-        cd .. && rm -rf trojan_update_temp
-        systemctl restart trojan
-        /usr/src/trojan/trojan -v 2>trojan.tmp
-        green "服务端trojan升级完成，当前版本：$(cat trojan.tmp | grep "trojan" | awk '{print $4}')，客户端请在trojan github下载最新版"
-        rm -f trojan.tmp
+    green "重新下载 trojan-plus 并替换服务端程序"
+    wget -O /usr/src/trojan/trojan.new "${TROJAN_PLUS_URL}" || { red "下载失败，未做任何修改"; rm -f /usr/src/trojan/trojan.new; return 1; }
+    chmod +x /usr/src/trojan/trojan.new
+    mv -f /usr/src/trojan/trojan.new /usr/src/trojan/trojan
+    systemctl restart trojan
+    if systemctl is-active --quiet trojan; then
+        green "trojan-plus 升级完成，服务运行中"
     else
-        green "当前版本$curr_version,最新版本$latest_version,无需升级"
+        red "服务启动失败，请检查：journalctl -u trojan -n 50"
     fi
-
 }
 
 start_menu() {
