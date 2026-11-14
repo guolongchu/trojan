@@ -68,48 +68,54 @@ EOF
     wget https://github.com/atrandys/trojan/raw/master/fakesite.zip >/dev/null 2>&1
     unzip fakesite.zip >/dev/null 2>&1
     sleep 5
-    if [ ! -d "/usr/src" ]; then
-        mkdir /usr/src
+    mkdir -p "/usr/src/trojan-cert/${your_domain}" /usr/src/trojan-temp
+    CERT_DIR="/usr/src/trojan-cert/${your_domain}"
+    ACME_DIR="$HOME/.acme.sh/${your_domain}_ecc"
+    cert_success=""
+
+    # 已有证书（acme.sh 目录里）但还没拷到 CERT_DIR 时，先补拷
+    if [ -s "${ACME_DIR}/fullchain.cer" ] && [ ! -s "${CERT_DIR}/fullchain.cer" ]; then
+        mkdir -p "$CERT_DIR"
+        cp -f "${ACME_DIR}/fullchain.cer" "${CERT_DIR}/fullchain.cer"
+        cp -f "${ACME_DIR}/private.key"   "${CERT_DIR}/private.key" 2>/dev/null || true
+        green "已从 acme.sh 目录恢复证书到 ${CERT_DIR}"
     fi
-    if [ ! -d "/usr/src/trojan-cert" ]; then
-        mkdir /usr/src/trojan-cert /usr/src/trojan-temp
-        mkdir /usr/src/trojan-cert/$your_domain
-        if [ ! -d "/usr/src/trojan-cert/$your_domain" ]; then
-            red "不存在/usr/src/trojan-cert/$your_domain目录"
-            exit 1
-        fi
-        curl https://get.acme.sh | sh
-        ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server zerossl
-        ~/.acme.sh/acme.sh --issue -d $your_domain --nginx
-        if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
-            cert_success="1"
-        fi
-    elif [ -f "/usr/src/trojan-cert/$your_domain/fullchain.cer" ]; then
-        cd /usr/src/trojan-cert/$your_domain
-        create_time=$(stat -c %Y fullchain.cer)
+
+    need_cert=1
+    if [ -s "${CERT_DIR}/fullchain.cer" ]; then
+        create_time=$(stat -c %Y "${CERT_DIR}/fullchain.cer" 2>/dev/null || stat -f %m "${CERT_DIR}/fullchain.cer" 2>/dev/null || echo 0)
         now_time=$(date +%s)
-        minus=$(($now_time - $create_time))
-        if [ $minus -gt 5184000 ]; then
-            curl https://get.acme.sh | sh
-            ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server zerossl
-            ~/.acme.sh/acme.sh --issue -d $your_domain --nginx
-            if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
-                cert_success="1"
-            fi
-        else
-            green "检测到域名$your_domain证书存在且未超过60天，无需重新申请"
+        if [ $((now_time - create_time)) -le 5184000 ]; then
+            green "检测到 ${your_domain} 证书存在且未超过 60 天，跳过申请"
+            need_cert=0
+        fi
+    fi
+
+    if [ "$need_cert" == "1" ]; then
+        read -p "证书通知邮箱（回车用 admin@${your_domain}）: " cert_email
+        [ -z "$cert_email" ] && cert_email="admin@${your_domain}"
+        if [ ! -x "$HOME/.acme.sh/acme.sh" ]; then
+            green "安装 acme.sh"
+            curl -fsSL https://get.acme.sh | sh || { red "acme.sh 安装失败"; exit 1; }
+        fi
+        "$HOME/.acme.sh/acme.sh" --register-account -m "$cert_email" --server zerossl >/dev/null 2>&1
+        green "开始申请证书（webroot 模式）"
+        "$HOME/.acme.sh/acme.sh" --issue -d "${your_domain}" \
+            --webroot /usr/share/nginx/html --keylength ec-256
+        if [ -s "${ACME_DIR}/fullchain.cer" ]; then
+            "$HOME/.acme.sh/acme.sh" --installcert -d "${your_domain}" \
+                --key-file "${CERT_DIR}/private.key" \
+                --fullchain-file "${CERT_DIR}/fullchain.cer"
             cert_success="1"
+            green "证书申请成功"
+        else
+            red "证书申请失败，日志：$HOME/.acme.sh/acme.sh.log"
+            red "常见原因：域名未解析到本机 / 80 端口不通 / ZeroSSL 频率限制"
         fi
     else
-        mkdir /usr/src/trojan-cert/$your_domain
-        curl https://get.acme.sh | sh
-        ~/.acme.sh/acme.sh --register-account -m mail@$your_domain --server zerossl
-        ~/.acme.sh/acme.sh --issue -d $your_domain --nginx
-        if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
-            cert_success="1"
-        fi
+        cert_success="1"
     fi
-    echo $cert_success
+
     if [ "$cert_success" == "1" ]; then
         cat >/etc/nginx/nginx.conf <<-EOF
 user  root;
