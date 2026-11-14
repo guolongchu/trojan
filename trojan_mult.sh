@@ -84,7 +84,7 @@ EOF
         if test -s /root/.acme.sh/${your_domain}_ecc/fullchain.cer; then
             cert_success="1"
         fi
-    elif [ -f "/usr/src/trojan-cert/${your_domain}_ecc/fullchain.cer" ]; then
+    elif [ -f "/usr/src/trojan-cert/$your_domain/fullchain.cer" ]; then
         cd /usr/src/trojan-cert/$your_domain
         create_time=$(stat -c %Y fullchain.cer)
         now_time=$(date +%s)
